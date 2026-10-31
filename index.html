@@ -76,6 +76,10 @@
       display: none;
     }
 
+    #toggle-fine-adjustment[hidden] {
+      display: none;
+    }
+
     #fine-adjustment[hidden] {
       display: none;
     }
@@ -184,13 +188,14 @@
     <h1>床の2点から垂直面を配置</h1>
     <p id="status" role="status" aria-live="polite">対応状況を確認しています…</p>
     <p id="depth-status" role="status" aria-live="polite">深度遮蔽: 停止中（このページでは深度データ未取得）</p>
-    <p id="instructions">ARを開始し、床の2点を指定してください。2点を結ぶ床の線と、その線分から鉛直上向きに1mの四角形を表示します。上辺はピンク、床側の下辺は黄色です。配置後はX/Y/Zの数値入力で点を微調整できます。</p>
+    <p id="instructions">ARを開始し、床の2点を指定してください。2点を結ぶ床の線と、その線分から鉛直上向きに1mの四角形を表示します。上辺はピンク、床側の下辺は黄色です。点を選んで「点の微調整を表示」を押すと、X/Y/Zで調整できます。</p>
     <button id="start-ar" type="button" disabled>ARを開始</button>
     <div id="point-buttons" class="point-buttons" hidden>
       <button type="button" data-point="0" disabled>1</button>
       <button type="button" data-point="1" disabled>2</button>
       <button id="clear-points" class="secondary" type="button" disabled>3: すべて解除</button>
     </div>
+    <button id="toggle-fine-adjustment" class="secondary" type="button" aria-controls="fine-adjustment" aria-expanded="false" hidden>点の微調整を表示</button>
     <section id="fine-adjustment" class="fine-adjustment" hidden aria-label="選択点の微調整">
       <p>選択点のタップ位置からの移動量（cm）。X/Zは面に沿う方向、Yは面の法線方向です。±ボタンは1mm刻み。</p>
       <div class="axis-controls">
@@ -234,6 +239,7 @@
     const pointButtons = [...document.querySelectorAll("[data-point]")];
     const clearButton = document.querySelector("#clear-points");
     const pointControls = document.querySelector("#point-buttons");
+    const fineAdjustmentToggle = document.querySelector("#toggle-fine-adjustment");
     const fineAdjustment = document.querySelector("#fine-adjustment");
     const offsetInputs = {
       x: document.querySelector("#offset-x"),
@@ -314,6 +320,18 @@
     let referenceSpace;
     let activePoint = null;
     let selectedPoint = null;
+    let fineAdjustmentExpanded = false;
+
+    function setFineAdjustmentExpanded(expanded) {
+      const canAdjust = selectedPoint !== null && pointBases[selectedPoint] !== null;
+      fineAdjustmentExpanded = canAdjust && expanded;
+      fineAdjustmentToggle.hidden = !canAdjust;
+      fineAdjustmentToggle.textContent = fineAdjustmentExpanded
+        ? "点の微調整を隠す"
+        : "点の微調整を表示";
+      fineAdjustmentToggle.setAttribute("aria-expanded", String(fineAdjustmentExpanded));
+      fineAdjustment.hidden = !fineAdjustmentExpanded;
+    }
 
     function updateStatus() {
       if (activePoint !== null) {
@@ -396,12 +414,12 @@
         button.setAttribute("aria-pressed", String(buttonIndex === index));
       });
       const base = pointBases[index];
-      fineAdjustment.hidden = base === null;
       if (base) {
         offsetInputs.x.value = base.offset.x.toFixed(1);
         offsetInputs.y.value = base.offset.y.toFixed(1);
         offsetInputs.z.value = base.offset.z.toFixed(1);
       }
+      setFineAdjustmentExpanded(base !== null && fineAdjustmentExpanded);
       updateStatus();
     }
 
@@ -472,7 +490,7 @@
       pointMeshes[index].visible = true;
       activePoint = null;
       pointButtons[index].textContent = `${index + 1} ✓`;
-      fineAdjustment.hidden = false;
+      setFineAdjustmentExpanded(false);
       offsetInputs.x.value = "0";
       offsetInputs.y.value = "0";
       offsetInputs.z.value = "0";
@@ -530,8 +548,8 @@
             button.setAttribute("aria-pressed", "false");
           });
           pointControls.hidden = true;
-          fineAdjustment.hidden = true;
-          instructions.textContent = "ARを開始し、床の2点を指定してください。2点を結ぶ床の線と、その線分から鉛直上向きに1mの四角形を表示します。上辺はピンク、床側の下辺は黄色です。配置後はX/Y/Zの数値入力で点を微調整できます。";
+          setFineAdjustmentExpanded(false);
+          instructions.textContent = "ARを開始し、床の2点を指定してください。2点を結ぶ床の線と、その線分から鉛直上向きに1mの四角形を表示します。上辺はピンク、床側の下辺は黄色です。点を選んで「点の微調整を表示」を押すと、X/Y/Zで調整できます。";
           startButton.disabled = false;
           startButton.hidden = false;
           activePoint = null;
@@ -569,6 +587,10 @@
       button.addEventListener("click", () => selectPoint(index));
     });
 
+    fineAdjustmentToggle.addEventListener("click", () => {
+      setFineAdjustmentExpanded(!fineAdjustmentExpanded);
+    });
+
     Object.values(offsetInputs).forEach((input) => {
       input.addEventListener("input", applyOffset);
     });
@@ -602,7 +624,7 @@
       pointBases.fill(null);
       activePoint = null;
       selectedPoint = null;
-      fineAdjustment.hidden = true;
+      setFineAdjustmentExpanded(false);
       planeMesh.visible = false;
       verticalEdges.visible = false;
       lowerEdge.visible = false;
