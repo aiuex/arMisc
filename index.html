@@ -216,9 +216,9 @@
     <p id="depth-status" role="status" aria-live="polite">深度遮蔽: 停止中（このページでは深度データ未取得）</p>
     <p id="instructions">ARを開始し、床の2点を指定してください。2点を結ぶ床の線と、その線分から鉛直上向きに1mの四角形を表示します。上辺はピンク、床側の下辺は黄色です。点を選んで「点の微調整を表示」を押すと、X/Y/Zで調整できます。</p>
     <section id="quick-look-panel" hidden aria-label="iPhoneのAR Quick Look">
-      <p>iPhoneのSafariでは床の2点を直接検出できないため、点の間隔を入力して形状を作り、AR Quick Lookで配置します。配置後に位置や向きを調整できます。</p>
+      <p>上辺と下辺の長さを入力して、高さ100cmの四角形を作成します。上辺はピンク、下辺は水色です。AR Quick Lookで配置後に位置や向きを調整できます。</p>
       <div class="quick-look-controls">
-        <label for="quick-look-length">床の2点間の長さ (cm、1〜500)</label>
+        <label for="quick-look-length">上辺・下辺の長さ (cm、1〜500)</label>
         <input id="quick-look-length" type="number" min="1" max="500" step="1" value="100">
       </div>
       <button id="open-quick-look" type="button">AR Quick Lookで配置</button>
@@ -368,10 +368,10 @@
     let fineAdjustmentExpanded = false;
     let quickLookObjectUrl;
 
-    function createQuickLookScene(length) {
+    function createQuickLookScene(width) {
       const arScene = new THREE.Scene();
       const surface = new THREE.Mesh(
-        new THREE.BoxGeometry(length, 1, 0.001),
+        new THREE.BoxGeometry(width, 1, 0.001),
         new THREE.MeshStandardMaterial({
           color: 0x22d3ee,
           transparent: true,
@@ -396,25 +396,10 @@
         arScene.add(edge);
       }
 
-      const left = -length / 2;
-      const right = length / 2;
-      addEdge(new THREE.Vector3(left, 0, 0), new THREE.Vector3(right, 0, 0), 0xfacc15, 0.0025);
+      const left = -width / 2;
+      const right = width / 2;
+      addEdge(new THREE.Vector3(left, 0, 0), new THREE.Vector3(right, 0, 0), 0x22d3ee, 0.0025);
       addEdge(new THREE.Vector3(left, 1, 0), new THREE.Vector3(right, 1, 0), 0xf472b6, 0.0025);
-      addEdge(new THREE.Vector3(left, 0, 0), new THREE.Vector3(left, 1, 0), 0x22d3ee, 0.0025);
-      addEdge(new THREE.Vector3(right, 0, 0), new THREE.Vector3(right, 1, 0), 0x22d3ee, 0.0025);
-
-      const pointGeometry = new THREE.SphereGeometry(0.014, 16, 12);
-      [-1, 1].forEach((side, index) => {
-        const point = new THREE.Mesh(
-          pointGeometry,
-          new THREE.MeshStandardMaterial({
-            color: index === 0 ? 0xf87171 : 0x4ade80,
-            roughness: 0.7
-          })
-        );
-        point.position.set(side * length / 2, 0, 0);
-        arScene.add(point);
-      });
 
       return arScene;
     }
@@ -434,17 +419,17 @@
     }
 
     async function openQuickLook() {
-      const lengthInCentimeters = Number(quickLookLength.value);
-      if (!Number.isInteger(lengthInCentimeters) ||
-          lengthInCentimeters < 1 ||
-          lengthInCentimeters > 500) {
-        status.textContent = "長さは1〜500cmの整数で入力してください。";
+      const widthInCentimeters = Number(quickLookLength.value);
+      if (!Number.isInteger(widthInCentimeters) ||
+          widthInCentimeters < 1 ||
+          widthInCentimeters > 500) {
+        status.textContent = "上辺・下辺の長さは1〜500cmの整数で入力してください。";
         return;
       }
 
       openQuickLookButton.disabled = true;
       status.textContent = "ARモデルを作成しています…";
-      const arScene = createQuickLookScene(lengthInCentimeters / 100);
+      const arScene = createQuickLookScene(widthInCentimeters / 100);
       try {
         const arrayBuffer = await new USDZExporter().parseAsync(arScene);
         const model = new Blob([arrayBuffer], { type: "model/vnd.usdz+zip" });
@@ -817,7 +802,7 @@
       quickLookPanel.hidden = false;
       depthStatus.hidden = true;
       startButton.hidden = true;
-      instructions.textContent = "床の2点間の長さを入力すると、高さ1mの四角形を作成してAR Quick Lookで配置できます。";
+      instructions.textContent = "上辺と下辺の長さを入力すると、高さ100cmの四角形を作成してAR Quick Lookで配置できます。";
       if (!window.isSecureContext) {
         openQuickLookButton.disabled = true;
         status.textContent = "iPhoneのAR Quick Lookを使うには、このページをHTTPSで開いてください。";
