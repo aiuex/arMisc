@@ -385,7 +385,7 @@
       function addEdge(start, end, color, radius) {
         const direction = new THREE.Vector3().subVectors(end, start);
         const edge = new THREE.Mesh(
-          new THREE.CylinderGeometry(radius, radius, direction.length(), 12),
+          new THREE.CylinderGeometry(radius, radius, direction.length(), 16),
           new THREE.MeshStandardMaterial({ color, roughness: 0.7 })
         );
         edge.position.copy(start).add(end).multiplyScalar(0.5);
@@ -398,8 +398,8 @@
 
       const left = -width / 2;
       const right = width / 2;
-      addEdge(new THREE.Vector3(left, 0, 0), new THREE.Vector3(right, 0, 0), 0x22d3ee, 0.0025);
-      addEdge(new THREE.Vector3(left, 1, 0), new THREE.Vector3(right, 1, 0), 0xf472b6, 0.0025);
+      addEdge(new THREE.Vector3(left, 0, 0), new THREE.Vector3(right, 0, 0), 0x22d3ee, 0.0125);
+      addEdge(new THREE.Vector3(left, 1, 0), new THREE.Vector3(right, 1, 0), 0xf472b6, 0.0125);
 
       return arScene;
     }
@@ -431,6 +431,7 @@
       status.textContent = "ARモデルを作成しています…";
       const arScene = createQuickLookScene(widthInCentimeters / 100);
       try {
+        arScene.updateMatrixWorld(true);
         const arrayBuffer = await new USDZExporter().parseAsync(arScene);
         const model = new Blob([arrayBuffer], { type: "model/vnd.usdz+zip" });
         const objectUrl = URL.createObjectURL(model);
