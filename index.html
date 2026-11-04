@@ -89,63 +89,6 @@
       display: none;
     }
 
-    #toggle-fine-adjustment[hidden] {
-      display: none;
-    }
-
-    #fine-adjustment[hidden] {
-      display: none;
-    }
-
-    .fine-adjustment {
-      margin-top: 10px;
-      padding-top: 10px;
-      border-top: 1px solid rgb(255 255 255 / 15%);
-    }
-
-    .fine-adjustment p {
-      margin: 0 0 8px;
-      font-size: 0.82rem;
-    }
-
-    .axis-controls {
-      display: grid;
-      grid-template-columns: repeat(3, minmax(0, 1fr));
-      gap: 8px;
-    }
-
-    .axis-control label {
-      display: block;
-      margin-bottom: 4px;
-      color: #d1d5db;
-      font-size: 0.8rem;
-    }
-
-    .axis-control input {
-      width: 100%;
-      min-height: 38px;
-      padding: 5px 7px;
-      border: 1px solid #6b7280;
-      border-radius: 8px;
-      background: #1f2937;
-      color: #fff;
-      font: inherit;
-    }
-
-    .step-buttons {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 4px;
-      margin-top: 4px;
-    }
-
-    .step-buttons button,
-    #reset-offset {
-      min-height: 34px;
-      padding: 4px;
-      font-size: 0.85rem;
-    }
-
     #depth-status {
       margin: 0 0 8px;
       color: #a7f3d0;
@@ -180,11 +123,6 @@
       background: #1f2937;
       color: #fff;
       font: inherit;
-    }
-
-    #reset-offset {
-      width: 100%;
-      margin-top: 8px;
     }
 
     button {
@@ -231,7 +169,7 @@
     <h1 class="visually-hidden">床の2点から垂直面を配置</h1>
     <p id="status" role="status" aria-live="polite">対応状況を確認しています…</p>
     <p id="depth-status" class="visually-hidden" role="status" aria-live="polite">深度遮蔽: 停止中（このページでは深度データ未取得）</p>
-    <p id="instructions" class="visually-hidden">ARを開始し、床の2点を指定してください。2点を結ぶ線から、設定した床面からの高さと垂直方向の高さで四角形を表示します。上辺はピンク、下辺は黄色です。点を選んで「点の微調整を表示」を押すと、X/Y/Zで調整できます。</p>
+    <p id="instructions" class="visually-hidden">ARを開始し、床の2点を指定してください。2点を結ぶ線から、設定した床面からの高さと垂直方向の高さで四角形を表示します。上辺はピンク、下辺は黄色です。点1・2を選ぶと位置を置き直せます。</p>
     <section id="dimensions-panel" hidden aria-label="ARの寸法設定">
       <div class="quick-look-controls">
         <label for="base-height">床面から下辺までの高さ (cm、0〜500)</label>
@@ -254,39 +192,7 @@
     <div id="point-buttons" class="point-buttons" hidden>
       <button type="button" data-point="0" disabled>1</button>
       <button type="button" data-point="1" disabled>2</button>
-      <button id="clear-points" class="secondary" type="button" disabled>3: すべて解除</button>
-      <button id="toggle-fine-adjustment" class="secondary" type="button" aria-controls="fine-adjustment" aria-expanded="false" hidden>点の微調整を表示</button>
     </div>
-    <section id="fine-adjustment" class="fine-adjustment" hidden aria-label="選択点の微調整">
-      <p class="visually-hidden">選択点のタップ位置からの移動量（cm）。X/Zは面に沿う方向、Yは面の法線方向です。±ボタンは1mm刻み。</p>
-      <div class="axis-controls">
-        <div class="axis-control">
-          <label for="offset-x">X (cm)</label>
-          <input id="offset-x" type="number" step="0.1" value="0">
-          <div class="step-buttons">
-            <button type="button" data-axis="x" data-step="-0.1" aria-label="Xを1ミリメートル減らす">−</button>
-            <button type="button" data-axis="x" data-step="0.1" aria-label="Xを1ミリメートル増やす">+</button>
-          </div>
-        </div>
-        <div class="axis-control">
-          <label for="offset-y">Y (cm)</label>
-          <input id="offset-y" type="number" step="0.1" value="0">
-          <div class="step-buttons">
-            <button type="button" data-axis="y" data-step="-0.1" aria-label="Yを1ミリメートル減らす">−</button>
-            <button type="button" data-axis="y" data-step="0.1" aria-label="Yを1ミリメートル増やす">+</button>
-          </div>
-        </div>
-        <div class="axis-control">
-          <label for="offset-z">Z (cm)</label>
-          <input id="offset-z" type="number" step="0.1" value="0">
-          <div class="step-buttons">
-            <button type="button" data-axis="z" data-step="-0.1" aria-label="Zを1ミリメートル減らす">−</button>
-            <button type="button" data-axis="z" data-step="0.1" aria-label="Zを1ミリメートル増やす">+</button>
-          </div>
-        </div>
-      </div>
-      <button id="reset-offset" class="secondary" type="button">タップ位置に戻す</button>
-    </section>
   </main>
 
   <script type="importmap">
@@ -314,15 +220,7 @@
     const isIOSDevice = /iPhone|iPad|iPod/i.test(navigator.userAgent) ||
       (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
     const pointButtons = [...document.querySelectorAll("[data-point]")];
-    const clearButton = document.querySelector("#clear-points");
     const pointControls = document.querySelector("#point-buttons");
-    const fineAdjustmentToggle = document.querySelector("#toggle-fine-adjustment");
-    const fineAdjustment = document.querySelector("#fine-adjustment");
-    const offsetInputs = {
-      x: document.querySelector("#offset-x"),
-      y: document.querySelector("#offset-y"),
-      z: document.querySelector("#offset-z")
-    };
     const scene = new THREE.Scene();
     const camera = new THREE.PerspectiveCamera();
     const renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
@@ -347,7 +245,6 @@
       .map((color) => new THREE.MeshBasicMaterial({ color }));
     const pointGeometry = new THREE.SphereGeometry(0.014, 16, 12);
     const points = Array(2).fill(null);
-    const pointBases = Array(2).fill(null);
     const pointMeshes = pointMaterials.map((material) => {
       const mesh = new THREE.Mesh(pointGeometry, material);
       mesh.visible = false;
@@ -405,8 +302,6 @@
     let hitTestSource;
     let referenceSpace;
     let activePoint = null;
-    let selectedPoint = null;
-    let fineAdjustmentExpanded = false;
     let quickLookObjectUrl;
     let baseHeight = 0;
     let verticalHeight = 1;
@@ -540,22 +435,11 @@
       }
     }
 
-    function setFineAdjustmentExpanded(expanded) {
-      const canAdjust = selectedPoint !== null && pointBases[selectedPoint] !== null;
-      fineAdjustmentExpanded = canAdjust && expanded;
-      fineAdjustmentToggle.hidden = !canAdjust;
-      fineAdjustmentToggle.textContent = fineAdjustmentExpanded
-        ? "点の微調整を隠す"
-        : "点の微調整を表示";
-      fineAdjustmentToggle.setAttribute("aria-expanded", String(fineAdjustmentExpanded));
-      fineAdjustment.hidden = !fineAdjustmentExpanded;
-    }
-
     function updateStatus() {
       if (activePoint !== null) {
         status.textContent = `点${activePoint + 1}の位置を照準リングで指定し、画面をタップしてください。`;
       } else if (points.every((point) => point !== null)) {
-        status.textContent = `床の2点を結ぶ線から、高さ${baseHeight * 100}cm〜${(baseHeight + verticalHeight) * 100}cmの四角形を配置しました。点1・2で位置を調整できます。`;
+        status.textContent = `床の2点を結ぶ線から、高さ${baseHeight * 100}cm〜${(baseHeight + verticalHeight) * 100}cmの四角形を配置しました。点1・2を選ぶと位置を置き直せます。`;
       } else {
         const placed = points.filter((point) => point !== null).length;
         status.textContent = `配置済み: ${placed}/2点。1または2を選び、床の位置をタップしてください。`;
@@ -663,51 +547,13 @@
         return;
       }
       activePoint = index;
-      selectedPoint = index;
       pointButtons.forEach((button, buttonIndex) => {
         const placed = points[buttonIndex] !== null;
         button.textContent = placed ? `${buttonIndex + 1} ✓` : `${buttonIndex + 1}`;
         button.classList.toggle("is-selected", buttonIndex === index);
         button.setAttribute("aria-pressed", String(buttonIndex === index));
       });
-      const base = pointBases[index];
-      if (base) {
-        offsetInputs.x.value = base.offset.x.toFixed(1);
-        offsetInputs.y.value = base.offset.y.toFixed(1);
-        offsetInputs.z.value = base.offset.z.toFixed(1);
-      }
-      setFineAdjustmentExpanded(base !== null && fineAdjustmentExpanded);
       updateStatus();
-    }
-
-    function applyOffset() {
-      if (selectedPoint === null || pointBases[selectedPoint] === null) {
-        return;
-      }
-      const values = Object.values(offsetInputs).map((input) => Number(input.value));
-      if (Object.values(offsetInputs).some((input) => input.value.trim() === "") ||
-          values.some((value) => !Number.isFinite(value))) {
-        status.textContent = "移動量は有効な数値で入力してください。";
-        return;
-      }
-
-      const [x, y, z] = values;
-      const base = pointBases[selectedPoint];
-      base.offset.set(x, y, z);
-      const displacement = new THREE.Vector3(x / 100, y / 100, z / 100)
-        .applyQuaternion(base.orientation);
-      points[selectedPoint].copy(base.position).add(displacement);
-      pointMeshes[selectedPoint].position.copy(points[selectedPoint]);
-      updatePlane();
-      status.textContent = `点${selectedPoint + 1}を X ${x} / Y ${y} / Z ${z} cm に調整しました。`;
-    }
-
-    function stepOffset(axis, amount) {
-      const input = offsetInputs[axis];
-      const current = Number(input.value);
-      const next = (Number.isFinite(current) ? current : 0) + amount;
-      input.value = next.toFixed(1);
-      applyOffset();
     }
 
     function onSelect(event) {
@@ -731,26 +577,11 @@
         pose.transform.position.y,
         pose.transform.position.z
       );
-      const orientation = new THREE.Quaternion(
-        pose.transform.orientation.x,
-        pose.transform.orientation.y,
-        pose.transform.orientation.z,
-        pose.transform.orientation.w
-      );
-      pointBases[index] = {
-        position,
-        orientation,
-        offset: new THREE.Vector3()
-      };
       points[index] = position.clone();
       pointMeshes[index].position.copy(position);
       pointMeshes[index].visible = true;
       activePoint = null;
       pointButtons[index].textContent = `${index + 1} ✓`;
-      setFineAdjustmentExpanded(false);
-      offsetInputs.x.value = "0";
-      offsetInputs.y.value = "0";
-      offsetInputs.z.value = "0";
       updatePlane();
       updateStatus();
     }
@@ -798,15 +629,13 @@
           referenceSpace = undefined;
           reticle.visible = false;
           depthStatus.textContent = "深度遮蔽: 無効（通常ARモード）";
-          clearButton.disabled = true;
           pointButtons.forEach((button) => {
             button.disabled = true;
             button.classList.remove("is-selected");
             button.setAttribute("aria-pressed", "false");
           });
           pointControls.hidden = true;
-          setFineAdjustmentExpanded(false);
-          instructions.textContent = "ARを開始し、床の2点を指定してください。2点を結ぶ線から、設定した床面からの高さと垂直方向の高さで四角形を表示します。上辺はピンク、下辺は黄色です。点を選んで「点の微調整を表示」を押すと、X/Y/Zで調整できます。";
+          instructions.textContent = "ARを開始し、床の2点を指定してください。2点を結ぶ線から、設定した床面からの高さと垂直方向の高さで四角形を表示します。上辺はピンク、下辺は黄色です。";
           startButton.disabled = false;
           startButton.hidden = false;
           activePoint = null;
@@ -814,12 +643,11 @@
           status.textContent = "ARセッションが終了しました。もう一度開始できます。";
         }, { once: true });
         startButton.hidden = true;
-        instructions.textContent = "床の2点を指定してください。点1または2を選んで床をタップし、配置済みの点を選び直すと置き直しできます。寸法設定を変更すると四角形に反映されます。";
+        instructions.textContent = "点1または2を選び、床の位置をタップしてください。配置済みの点も選び直して置き直せます。寸法設定を変更すると四角形に反映されます。";
         pointControls.hidden = false;
         pointButtons.forEach((button) => {
           button.disabled = false;
         });
-        clearButton.disabled = false;
         depthStatus.textContent = "深度遮蔽: 無効（通常ARモード）";
         status.textContent = "まず点1または2のボタンを選んでください。";
       } catch (error) {
@@ -847,30 +675,6 @@
       button.addEventListener("click", () => selectPoint(index));
     });
 
-    fineAdjustmentToggle.addEventListener("click", () => {
-      setFineAdjustmentExpanded(!fineAdjustmentExpanded);
-    });
-
-    Object.values(offsetInputs).forEach((input) => {
-      input.addEventListener("input", applyOffset);
-    });
-
-    document.querySelectorAll("[data-axis][data-step]").forEach((button) => {
-      button.addEventListener("click", () => {
-        stepOffset(button.dataset.axis, Number(button.dataset.step));
-      });
-    });
-
-    document.querySelector("#reset-offset").addEventListener("click", () => {
-      if (selectedPoint === null || pointBases[selectedPoint] === null) {
-        return;
-      }
-      offsetInputs.x.value = "0";
-      offsetInputs.y.value = "0";
-      offsetInputs.z.value = "0";
-      applyOffset();
-    });
-
     function clearPoints() {
       points.fill(null);
       pointMeshes.forEach((mesh) => {
@@ -881,10 +685,7 @@
         button.classList.remove("is-selected");
         button.setAttribute("aria-pressed", "false");
       });
-      pointBases.fill(null);
       activePoint = null;
-      selectedPoint = null;
-      setFineAdjustmentExpanded(false);
       planeMesh.visible = false;
       verticalEdges.visible = false;
       lowerEdge.visible = false;
@@ -894,8 +695,6 @@
       });
       updateStatus();
     }
-
-    clearButton.addEventListener("click", clearPoints);
 
     window.addEventListener("resize", () => {
       renderer.setSize(window.innerWidth, window.innerHeight);
