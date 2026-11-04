@@ -243,7 +243,7 @@
       </div>
     </section>
     <section id="quick-look-panel" hidden aria-label="iPhoneのAR Quick Look">
-      <p class="visually-hidden">上辺と下辺の長さを入力して、高さ100cmの四角形を作成します。上辺はピンク、下辺は水色です。AR Quick Lookで配置後に位置や向きを調整できます。</p>
+      <p class="visually-hidden">上辺と下辺の長さ、床面から下辺までの高さ、下辺から上辺までの高さを設定して四角形を作成します。上辺はピンク、下辺は黄色です。AR Quick Lookで配置後に位置や向きを調整できます。</p>
       <div class="quick-look-controls">
         <label for="quick-look-length">上辺・下辺の長さ (cm、1〜500)</label>
         <input id="quick-look-length" type="number" min="1" max="500" step="1" value="100">
@@ -311,6 +311,8 @@
     const quickLookPanel = document.querySelector("#quick-look-panel");
     const quickLookLength = document.querySelector("#quick-look-length");
     const openQuickLookButton = document.querySelector("#open-quick-look");
+    const isIOSDevice = /iPhone|iPad|iPod/i.test(navigator.userAgent) ||
+      (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
     const pointButtons = [...document.querySelectorAll("[data-point]")];
     const clearButton = document.querySelector("#clear-points");
     const pointControls = document.querySelector("#point-buttons");
@@ -409,10 +411,10 @@
     let baseHeight = 0;
     let verticalHeight = 1;
 
-    function createQuickLookScene(width) {
+    function createQuickLookScene(width, baseHeight, verticalHeight) {
       const arScene = new THREE.Scene();
       const surface = new THREE.Mesh(
-        new THREE.BoxGeometry(width, 1, 0.001),
+        new THREE.BoxGeometry(width, verticalHeight, 0.001),
         new THREE.MeshStandardMaterial({
           color: 0x22d3ee,
           transparent: true,
@@ -420,7 +422,7 @@
           roughness: 0.8
         })
       );
-      surface.position.y = 0.5;
+      surface.position.y = baseHeight + verticalHeight / 2;
       arScene.add(surface);
 
       function addEdge(start, end, color, radius) {
@@ -439,8 +441,28 @@
 
       const left = -width / 2;
       const right = width / 2;
-      addEdge(new THREE.Vector3(left, 0, 0), new THREE.Vector3(right, 0, 0), 0x22d3ee, 0.00625);
-      addEdge(new THREE.Vector3(left, 1, 0), new THREE.Vector3(right, 1, 0), 0xf472b6, 0.00625);
+      addEdge(
+        new THREE.Vector3(left, baseHeight, 0),
+        new THREE.Vector3(right, baseHeight, 0),
+        0xfacc15,
+        0.00625
+      );
+      addEdge(
+        new THREE.Vector3(left, baseHeight + verticalHeight, 0),
+        new THREE.Vector3(right, baseHeight + verticalHeight, 0),
+        0xf472b6,
+        0.00625
+      );
+      if (baseHeight > 0) {
+        [-width / 2, width / 2].forEach((x) => {
+          const post = new THREE.Mesh(
+            new THREE.BoxGeometry(0.01, baseHeight, 0.01),
+            new THREE.MeshStandardMaterial({ color: 0x22d3ee, roughness: 0.7 })
+          );
+          post.position.set(x, baseHeight / 2, 0);
+          arScene.add(post);
+        });
+      }
 
       return arScene;
     }
@@ -467,10 +489,29 @@
         status.textContent = "上辺・下辺の長さは1〜500cmの整数で入力してください。";
         return;
       }
+      const baseHeightInCentimeters = Number(baseHeightInput.value);
+      const verticalHeightInCentimeters = Number(verticalHeightInput.value);
+      if (baseHeightInput.value.trim() === "" ||
+          !Number.isInteger(baseHeightInCentimeters) ||
+          baseHeightInCentimeters < 0 ||
+          baseHeightInCentimeters > 500 ||
+          verticalHeightInput.value.trim() === "" ||
+          !Number.isInteger(verticalHeightInCentimeters) ||
+          verticalHeightInCentimeters < 1 ||
+          verticalHeightInCentimeters > 500) {
+        status.textContent = "床面からの高さは0〜500cm、高さは1〜500cmの整数で入力してください。";
+        return;
+      }
 
       openQuickLookButton.disabled = true;
       status.textContent = "ARモデルを作成しています…";
-      const arScene = createQuickLookScene(widthInCentimeters / 100);
+      const selectedBaseHeight = baseHeightInCentimeters / 100;
+      const selectedVerticalHeight = verticalHeightInCentimeters / 100;
+      const arScene = createQuickLookScene(
+        widthInCentimeters / 100,
+        selectedBaseHeight,
+        selectedVerticalHeight
+      );
       try {
         arScene.updateMatrixWorld(true);
         const arrayBuffer = await new USDZExporter().parseAsync(arScene);
@@ -608,8 +649,12 @@
 
       baseHeight = nextBaseHeight / 100;
       verticalHeight = nextVerticalHeight / 100;
-      updatePlane();
-      updateStatus();
+      if (isIOSDevice) {
+        status.textContent = `床から${nextBaseHeight}cm、そこから${nextVerticalHeight}cmの高さに設定しました。`;
+      } else {
+        updatePlane();
+        updateStatus();
+      }
     }
 
     function selectPoint(index) {
@@ -798,7 +843,6 @@
     openQuickLookButton.addEventListener("click", openQuickLook);
     baseHeightInput.addEventListener("input", updateDimensions);
     verticalHeightInput.addEventListener("input", updateDimensions);
-
     pointButtons.forEach((button, index) => {
       button.addEventListener("click", () => selectPoint(index));
     });
@@ -880,14 +924,12 @@
       reticle.material.dispose();
     });
 
-    const isIOSDevice = /iPhone|iPad|iPod/i.test(navigator.userAgent) ||
-      (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
-    dimensionsPanel.hidden = isIOSDevice;
+    dimensionsPanel.hidden = false;
     if (isIOSDevice) {
       quickLookPanel.hidden = false;
       depthStatus.hidden = true;
       startButton.hidden = true;
-      instructions.textContent = "上辺と下辺の長さを入力すると、高さ100cmの四角形を作成してAR Quick Lookで配置できます。";
+      instructions.textContent = "長さ、床面から下辺までの高さ、下辺から上辺までの高さを設定してAR Quick Lookで配置できます。";
       if (!window.isSecureContext) {
         openQuickLookButton.disabled = true;
         status.textContent = "iPhoneのAR Quick Lookを使うには、このページをHTTPSで開いてください。";
