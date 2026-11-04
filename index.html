@@ -390,6 +390,15 @@
     verticalEdges.visible = false;
     verticalEdges.renderOrder = 2;
     scene.add(verticalEdges);
+    const basePostGeometry = new THREE.BoxGeometry(0.01, 1, 0.01);
+    const basePostMaterial = new THREE.MeshBasicMaterial({ color: 0x22d3ee });
+    const basePosts = Array.from({ length: 2 }, () => {
+      const post = new THREE.Mesh(basePostGeometry, basePostMaterial);
+      post.visible = false;
+      post.renderOrder = 2;
+      scene.add(post);
+      return post;
+    });
     let session;
     let hitTestSource;
     let referenceSpace;
@@ -530,6 +539,11 @@
       const second = points[1] || new THREE.Vector3();
       const lowerFirst = first.clone().add(baseOffset);
       const lowerSecond = second.clone().add(baseOffset);
+      const basePoints = [first, second];
+      basePosts.forEach((post, index) => {
+        post.position.copy(basePoints[index]).addScaledVector(baseOffset, 0.5);
+        post.scale.y = baseHeight;
+      });
       const positionedPoints = [
         lowerFirst,
         lowerSecond,
@@ -557,10 +571,16 @@
         verticalEdges.visible = false;
         lowerEdge.visible = false;
         upperEdge.visible = false;
+        basePosts.forEach((post) => {
+          post.visible = false;
+        });
         return;
       }
 
       const hasLength = points[0].distanceToSquared(points[1]) > 0.000001;
+      basePosts.forEach((post) => {
+        post.visible = hasLength && baseHeight > 0;
+      });
       if (hasLength) {
         positionThickEdge(lowerEdge, lowerFirst, lowerSecond);
         positionThickEdge(upperEdge, positionedPoints[3], positionedPoints[2]);
@@ -825,6 +845,9 @@
       verticalEdges.visible = false;
       lowerEdge.visible = false;
       upperEdge.visible = false;
+      basePosts.forEach((post) => {
+        post.visible = false;
+      });
       updateStatus();
     }
 
@@ -851,6 +874,8 @@
       upperEdge.material.dispose();
       verticalEdgesGeometry.dispose();
       verticalEdges.material.dispose();
+      basePostGeometry.dispose();
+      basePostMaterial.dispose();
       reticle.geometry.dispose();
       reticle.material.dispose();
     });
