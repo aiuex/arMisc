@@ -302,6 +302,7 @@
     let hitTestSource;
     let referenceSpace;
     let activePoint = null;
+    let floorRecognized = false;
     let quickLookObjectUrl;
     let baseHeight = 0;
     let verticalHeight = 1;
@@ -435,6 +436,29 @@
       }
     }
 
+    function getFloorHitPose(results) {
+      for (const result of results) {
+        const pose = result.getPose(referenceSpace);
+        if (!pose) {
+          continue;
+        }
+
+        const orientation = pose.transform.orientation;
+        const surfaceNormal = new THREE.Vector3(0, 1, 0).applyQuaternion(
+          new THREE.Quaternion(
+            orientation.x,
+            orientation.y,
+            orientation.z,
+            orientation.w
+          )
+        );
+        if (surfaceNormal.y >= 0.85) {
+          return pose;
+        }
+      }
+      return null;
+    }
+
     function updateStatus() {
       if (activePoint !== null) {
         status.textContent = `点${activePoint + 1}の位置を照準リングで指定し、画面をタップしてください。`;
@@ -557,18 +581,17 @@
     }
 
     function onSelect(event) {
+      if (!floorRecognized) {
+        status.textContent = "カメラを床や机などの平らな面に向けて、床面を認識してください。";
+        return;
+      }
       if (activePoint === null) {
         status.textContent = "点1または2のボタンを選んでから、床の配置位置をタップしてください。";
         return;
       }
-      const results = event.frame.getHitTestResults(hitTestSource);
-      if (!results.length) {
-        status.textContent = "面を検出できません。照準リングを床や机などに合わせてください。";
-        return;
-      }
-      const pose = results[0].getPose(referenceSpace);
+      const pose = getFloorHitPose(event.frame.getHitTestResults(hitTestSource));
       if (!pose) {
-        status.textContent = "タップ位置を取得できませんでした。もう一度お試しください。";
+        status.textContent = "床面が見つかりません。カメラを床や机などの平らな面に向けてください。";
         return;
       }
       const index = activePoint;
@@ -589,14 +612,27 @@
     renderer.setAnimationLoop((time, frame) => {
       if (frame && hitTestSource && referenceSpace) {
         const results = frame.getHitTestResults(hitTestSource);
-        if (results.length) {
-          const pose = results[0].getPose(referenceSpace);
-          if (pose) {
-            reticle.matrix.fromArray(pose.transform.matrix);
-            reticle.visible = true;
+        const pose = getFloorHitPose(results);
+        if (pose) {
+          reticle.matrix.fromArray(pose.transform.matrix);
+          reticle.visible = true;
+          if (!floorRecognized) {
+            floorRecognized = true;
+            pointButtons.forEach((button) => {
+              button.disabled = false;
+            });
+            status.textContent = "床面を認識しました。点1または2を選んでください。";
+          } else if (activePoint !== null &&
+              status.textContent.startsWith("床面が見つかりません。")) {
+            updateStatus();
           }
         } else {
           reticle.visible = false;
+          if (!floorRecognized) {
+            status.textContent = "カメラを床や机などの平らな面に向けて、床面を認識してください。";
+          } else if (activePoint !== null) {
+            status.textContent = "床面が見つかりません。カメラを床や机などの平らな面に向けてください。";
+          }
         }
       }
       renderer.render(scene, camera);
@@ -627,6 +663,7 @@
         session.addEventListener("end", () => {
           hitTestSource = undefined;
           referenceSpace = undefined;
+          floorRecognized = false;
           reticle.visible = false;
           depthStatus.textContent = "深度遮蔽: 無効（通常ARモード）";
           pointButtons.forEach((button) => {
@@ -646,10 +683,11 @@
         instructions.textContent = "点1または2を選び、床の位置をタップしてください。配置済みの点も選び直して置き直せます。寸法設定を変更すると四角形に反映されます。";
         pointControls.hidden = false;
         pointButtons.forEach((button) => {
-          button.disabled = false;
+          button.disabled = true;
         });
         depthStatus.textContent = "深度遮蔽: 無効（通常ARモード）";
-        status.textContent = "まず点1または2のボタンを選んでください。";
+        floorRecognized = false;
+        status.textContent = "カメラを床や机などの平らな面に向けて、床面を認識してください。";
       } catch (error) {
         const failedSession = session;
         session = undefined;
