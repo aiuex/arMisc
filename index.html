@@ -140,6 +140,10 @@
       font-size: 0.82rem;
     }
 
+    #dimensions-panel[hidden] {
+      display: none;
+    }
+
     #quick-look-panel[hidden] {
       display: none;
     }
@@ -215,7 +219,17 @@
     <h1>床の2点から垂直面を配置</h1>
     <p id="status" role="status" aria-live="polite">対応状況を確認しています…</p>
     <p id="depth-status" role="status" aria-live="polite">深度遮蔽: 停止中（このページでは深度データ未取得）</p>
-    <p id="instructions">ARを開始し、床の2点を指定してください。2点を結ぶ床の線と、その線分から鉛直上向きに1mの四角形を表示します。上辺はピンク、床側の下辺は黄色です。点を選んで「点の微調整を表示」を押すと、X/Y/Zで調整できます。</p>
+    <p id="instructions">ARを開始し、床の2点を指定してください。2点を結ぶ線から、設定した床面からの高さと垂直方向の高さで四角形を表示します。上辺はピンク、下辺は黄色です。点を選んで「点の微調整を表示」を押すと、X/Y/Zで調整できます。</p>
+    <section id="dimensions-panel" hidden aria-label="ARの寸法設定">
+      <div class="quick-look-controls">
+        <label for="base-height">床面から下辺までの高さ (cm、0〜500)</label>
+        <input id="base-height" type="number" min="0" max="500" step="1" value="0">
+      </div>
+      <div class="quick-look-controls">
+        <label for="vertical-height">下辺から上辺までの高さ (cm、1〜500)</label>
+        <input id="vertical-height" type="number" min="1" max="500" step="1" value="100">
+      </div>
+    </section>
     <section id="quick-look-panel" hidden aria-label="iPhoneのAR Quick Look">
       <p>上辺と下辺の長さを入力して、高さ100cmの四角形を作成します。上辺はピンク、下辺は水色です。AR Quick Lookで配置後に位置や向きを調整できます。</p>
       <div class="quick-look-controls">
@@ -279,6 +293,9 @@
     const depthStatus = document.querySelector("#depth-status");
     const instructions = document.querySelector("#instructions");
     const startButton = document.querySelector("#start-ar");
+    const dimensionsPanel = document.querySelector("#dimensions-panel");
+    const baseHeightInput = document.querySelector("#base-height");
+    const verticalHeightInput = document.querySelector("#vertical-height");
     const quickLookPanel = document.querySelector("#quick-look-panel");
     const quickLookLength = document.querySelector("#quick-look-length");
     const openQuickLookButton = document.querySelector("#open-quick-look");
@@ -368,6 +385,8 @@
     let selectedPoint = null;
     let fineAdjustmentExpanded = false;
     let quickLookObjectUrl;
+    let baseHeight = 0;
+    let verticalHeight = 1;
 
     function createQuickLookScene(width) {
       const arScene = new THREE.Scene();
@@ -474,7 +493,7 @@
       if (activePoint !== null) {
         status.textContent = `点${activePoint + 1}の位置を照準リングで指定し、画面をタップしてください。`;
       } else if (points.every((point) => point !== null)) {
-        status.textContent = "床の2点を結ぶ線と、鉛直上向き1mの四角形を配置しました。点1・2で位置を調整できます。";
+        status.textContent = `床の2点を結ぶ線から、高さ${baseHeight * 100}cm〜${(baseHeight + verticalHeight) * 100}cmの四角形を配置しました。点1・2で位置を調整できます。`;
       } else {
         const placed = points.filter((point) => point !== null).length;
         status.textContent = `配置済み: ${placed}/2点。1または2を選び、床の位置をタップしてください。`;
@@ -493,23 +512,26 @@
     }
 
     function updatePlane() {
-      const verticalOffset = new THREE.Vector3(0, 1, 0);
+      const baseOffset = new THREE.Vector3(0, baseHeight, 0);
+      const verticalOffset = new THREE.Vector3(0, verticalHeight, 0);
       const first = points[0] || new THREE.Vector3();
       const second = points[1] || new THREE.Vector3();
+      const lowerFirst = first.clone().add(baseOffset);
+      const lowerSecond = second.clone().add(baseOffset);
       const positionedPoints = [
-        first,
-        second,
-        second.clone().add(verticalOffset),
-        first.clone().add(verticalOffset)
+        lowerFirst,
+        lowerSecond,
+        lowerSecond.clone().add(verticalOffset),
+        lowerFirst.clone().add(verticalOffset)
       ];
       const positionAttribute = planeGeometry.getAttribute("position");
       const verticalEdgesPositionAttribute = verticalEdgesGeometry.getAttribute("position");
       positionedPoints.forEach((point, index) => {
         positionAttribute.setXYZ(index, point.x, point.y, point.z);
       });
-      verticalEdgesPositionAttribute.setXYZ(0, first.x, first.y, first.z);
+      verticalEdgesPositionAttribute.setXYZ(0, lowerFirst.x, lowerFirst.y, lowerFirst.z);
       verticalEdgesPositionAttribute.setXYZ(1, positionedPoints[3].x, positionedPoints[3].y, positionedPoints[3].z);
-      verticalEdgesPositionAttribute.setXYZ(2, second.x, second.y, second.z);
+      verticalEdgesPositionAttribute.setXYZ(2, lowerSecond.x, lowerSecond.y, lowerSecond.z);
       verticalEdgesPositionAttribute.setXYZ(3, positionedPoints[2].x, positionedPoints[2].y, positionedPoints[2].z);
       positionAttribute.needsUpdate = true;
       verticalEdgesPositionAttribute.needsUpdate = true;
@@ -528,13 +550,34 @@
 
       const hasLength = points[0].distanceToSquared(points[1]) > 0.000001;
       if (hasLength) {
-        positionThickEdge(lowerEdge, first, second);
+        positionThickEdge(lowerEdge, lowerFirst, lowerSecond);
         positionThickEdge(upperEdge, positionedPoints[3], positionedPoints[2]);
       }
       planeMesh.visible = hasLength;
       verticalEdges.visible = hasLength;
       lowerEdge.visible = hasLength;
       upperEdge.visible = hasLength;
+    }
+
+    function updateDimensions() {
+      const nextBaseHeight = Number(baseHeightInput.value);
+      const nextVerticalHeight = Number(verticalHeightInput.value);
+      if (baseHeightInput.value.trim() === "" ||
+          !Number.isInteger(nextBaseHeight) ||
+          nextBaseHeight < 0 ||
+          nextBaseHeight > 500 ||
+          verticalHeightInput.value.trim() === "" ||
+          !Number.isInteger(nextVerticalHeight) ||
+          nextVerticalHeight < 1 ||
+          nextVerticalHeight > 500) {
+        status.textContent = "床面からの高さは0〜500cm、高さは1〜500cmの整数で入力してください。";
+        return;
+      }
+
+      baseHeight = nextBaseHeight / 100;
+      verticalHeight = nextVerticalHeight / 100;
+      updatePlane();
+      updateStatus();
     }
 
     function selectPoint(index) {
@@ -686,7 +729,7 @@
           });
           pointControls.hidden = true;
           setFineAdjustmentExpanded(false);
-          instructions.textContent = "ARを開始し、床の2点を指定してください。2点を結ぶ床の線と、その線分から鉛直上向きに1mの四角形を表示します。上辺はピンク、床側の下辺は黄色です。点を選んで「点の微調整を表示」を押すと、X/Y/Zで調整できます。";
+          instructions.textContent = "ARを開始し、床の2点を指定してください。2点を結ぶ線から、設定した床面からの高さと垂直方向の高さで四角形を表示します。上辺はピンク、下辺は黄色です。点を選んで「点の微調整を表示」を押すと、X/Y/Zで調整できます。";
           startButton.disabled = false;
           startButton.hidden = false;
           activePoint = null;
@@ -694,7 +737,7 @@
           status.textContent = "ARセッションが終了しました。もう一度開始できます。";
         }, { once: true });
         startButton.hidden = true;
-        instructions.textContent = "床の2点を指定してください。点1または2を選んで床をタップし、配置済みの点を選び直すと置き直しできます。高さ1mの四角形は自動で更新されます。";
+        instructions.textContent = "床の2点を指定してください。点1または2を選んで床をタップし、配置済みの点を選び直すと置き直しできます。寸法設定を変更すると四角形に反映されます。";
         pointControls.hidden = false;
         pointButtons.forEach((button) => {
           button.disabled = false;
@@ -721,6 +764,8 @@
     });
 
     openQuickLookButton.addEventListener("click", openQuickLook);
+    baseHeightInput.addEventListener("input", updateDimensions);
+    verticalHeightInput.addEventListener("input", updateDimensions);
 
     pointButtons.forEach((button, index) => {
       button.addEventListener("click", () => selectPoint(index));
@@ -800,6 +845,7 @@
 
     const isIOSDevice = /iPhone|iPad|iPod/i.test(navigator.userAgent) ||
       (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+    dimensionsPanel.hidden = isIOSDevice;
     if (isIOSDevice) {
       quickLookPanel.hidden = false;
       depthStatus.hidden = true;
