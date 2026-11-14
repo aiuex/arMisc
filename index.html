@@ -181,7 +181,7 @@
       </div>
     </section>
     <section id="quick-look-panel" hidden aria-label="iPhoneのAR Quick Look">
-      <p class="visually-hidden">上辺と下辺の長さ、床面から下辺までの高さ、下辺から上辺までの高さを設定して四角形を作成します。上辺はピンク、下辺は黄色です。AR Quick Lookで配置後に位置や向きを調整できます。</p>
+      <p class="visually-hidden">上辺と下辺の長さ、床面から下辺までの高さ、下辺から上辺までの高さを設定して四角形を作成します。上辺はピンク、下辺は黄色、10cm間隔の目盛りは紫色です。AR Quick Lookで配置後に位置や向きを調整できます。</p>
       <div class="quick-look-controls">
         <label for="quick-look-length">上辺・下辺の長さ (cm、1〜500)</label>
         <input id="quick-look-length" type="number" min="1" max="500" step="1" value="100">
@@ -352,6 +352,32 @@
         0xf472b6,
         0.00625
       );
+      const verticalHeightCentimeters = Math.round(verticalHeight * 100);
+      for (let heightCentimeters = 10;
+        heightCentimeters <= verticalHeightCentimeters;
+        heightCentimeters += 10) {
+        const height = baseHeight + heightCentimeters / 100;
+        addEdge(
+          new THREE.Vector3(left, height, -0.05),
+          new THREE.Vector3(left, height, 0.05),
+          0xc084fc,
+          0.0025
+        );
+        addEdge(
+          new THREE.Vector3(right, height, -0.05),
+          new THREE.Vector3(right, height, 0.05),
+          0xc084fc,
+          0.0025
+        );
+        if (heightCentimeters < verticalHeightCentimeters) {
+          addEdge(
+            new THREE.Vector3(left, height, 0.003),
+            new THREE.Vector3(right, height, 0.003),
+            0xc084fc,
+            0.0025
+          );
+        }
+      }
       if (baseHeight > 0) {
         [-width / 2, width / 2].forEach((x) => {
           const post = new THREE.Mesh(
@@ -827,7 +853,7 @@
       quickLookPanel.hidden = false;
       depthStatus.hidden = true;
       startButton.hidden = true;
-      instructions.textContent = "長さ、床面から下辺までの高さ、下辺から上辺までの高さを設定してAR Quick Lookで配置できます。";
+      instructions.textContent = "長さ、床面から下辺までの高さ、下辺から上辺までの高さを設定してAR Quick Lookで配置できます。紫色の目盛りは10cm間隔です。";
       if (!window.isSecureContext) {
         openQuickLookButton.disabled = true;
         status.textContent = "iPhoneのAR Quick Lookを使うには、このページをHTTPSで開いてください。";
